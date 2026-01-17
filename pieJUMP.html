@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🥧 PieRun</title>
+<style>
+  html, body { margin:0; padding:0; overflow:hidden; font-family: Arial, sans-serif; background:#ccefff;}
+  canvas { display:block; background:#ccefff; }
+  #score { position:absolute; top:20px; left:50%; transform:translateX(-50%); font-size:24px; color:black; }
+  #intro {
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    background:#ccefff; display:flex; flex-direction:column;
+    justify-content:center; align-items:center; z-index:10;
+  }
+  #intro h1 { font-size:48px; margin:10px; }
+  #intro p { font-size:24px; margin:5px; }
+  #intro button { font-size:24px; padding:10px 20px; margin-top:20px; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<div id="intro">
+  <h1>Welcome to PieRun 🥧</h1>
+  <p>Controls: Tap / Click / Space = Jump (Double Jump Enabled)</p>
+  <button id="startBtn">Play</button>
+</div>
+
+<div id="score">Score: 0</div>
+<canvas id="gameCanvas"></canvas>
+
+<script>
+// ================= CANVAS =================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+function resizeCanvas(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// ================= GAME VARIABLES =================
+let score = 0;
+let speed = 6;
+let gameRunning = false; // start paused
+let isDay = true;
+let dayNightTimer = 0;
+
+// Pie character
+let pie = {
+    x: 100,
+    y: canvas.height - 150,
+    radius: 30,
+    dy: 0,
+    jumpCount: 0
+};
+
+let gravity = 1.2;
+let obstacles = [];
+
+// ================= INPUT =================
+function jump(){
+    if(pie.jumpCount < 2){ // double jump
+        pie.dy = -15;
+        pie.jumpCount++;
+    }
+}
+document.addEventListener('keydown', e=>{ if(e.code==="Space") jump(); });
+canvas.addEventListener('click', jump);
+canvas.addEventListener('touchstart', jump);
+
+// ================= GAME FUNCTIONS =================
+function spawnObstacle(){
+    let height = 50 + Math.random()*50;
+    obstacles.push({ x: canvas.width, y: canvas.height - 100 - height, width: 50, height: height });
+}
+
+let spawnTimer = 0;
+
+// ================= GAME LOOP =================
+function gameLoop(){
+    if(!gameRunning) return;
+
+    // Day/Night cycle
+    dayNightTimer++;
+    if(dayNightTimer > 600){
+        isDay = !isDay;
+        dayNightTimer = 0;
+    }
+
+    // Background
+    ctx.fillStyle = isDay ? "#ccefff" : "#001933";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // Ground
+    ctx.fillStyle = "#888";
+    ctx.fillRect(0, canvas.height-100, canvas.width, 100);
+
+    // Update pie
+    pie.dy += gravity;
+    pie.y += pie.dy;
+    if(pie.y + pie.radius > canvas.height - 100){
+        pie.y = canvas.height - 100 - pie.radius;
+        pie.dy = 0;
+        pie.jumpCount = 0;
+    }
+
+    // Draw pie
+    ctx.fillStyle = "orange";
+    ctx.beginPath();
+    ctx.arc(pie.x, pie.y, pie.radius, 0, Math.PI*2);
+    ctx.fill();
+
+    // Obstacles
+    spawnTimer++;
+    if(spawnTimer > 90){
+        spawnObstacle();
+        spawnTimer = 0;
+    }
+
+    for(let i=obstacles.length-1; i>=0; i--){
+        let obs = obstacles[i];
+        obs.x -= speed;
+        ctx.fillStyle = "green";
+        ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+
+        // Collision
+        if(pie.x + pie.radius > obs.x && pie.x - pie.radius < obs.x + obs.width &&
+           pie.y + pie.radius > obs.y && pie.y - pie.radius < obs.y + obs.height){
+            gameRunning = false;
+            alert("Game Over! Score: " + score);
+            window.location.reload();
+        }
+
+        if(obs.x + obs.width < 0) obstacles.splice(i,1);
+    }
+
+    // Score
+    score++;
+    document.getElementById('score').innerText = "Score: " + score;
+
+    requestAnimationFrame(gameLoop);
+}
+
+// ================= INTRO BUTTON =================
+document.getElementById('startBtn').addEventListener('click', ()=>{
+    document.getElementById('intro').style.display = 'none';
+    gameRunning = true;
+    gameLoop();
+});
+</script>
+</body>
+</html>
